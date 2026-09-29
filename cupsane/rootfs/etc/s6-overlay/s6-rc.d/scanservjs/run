@@ -17,8 +17,19 @@ fi
 # scanservjs reads these at start-up; see its docs on environment variables.
 OCR_LANG=$(bashio::config 'ocr_language' 'eng')
 DEVICES=$(jq -r '[.devices[]? // empty] | join(";")' /data/options.json)
-SCANIMAGE_LIST_IGNORE=$(bashio::config 'scanimage_list_ignore' 'false')
 SANE_CONFIG_DIR="/etc/sane.d"
+
+# scanservjs skips `scanimage -L` whenever this variable is non-empty — even
+# "false" — so it must only exist when the option is on.
+if bashio::config.true 'scanimage_list_ignore'; then
+    export SCANIMAGE_LIST_IGNORE="true"
+else
+    unset SCANIMAGE_LIST_IGNORE
+fi
+
+# The cached device list pins USB ids like "brother3:bus2;dev3", which change
+# when the device is replugged; always rediscover on start.
+rm -f /var/lib/scanservjs/devices.json /usr/lib/scanservjs/data/devices.json
 
 case "$(bashio::config 'log_level' 'info')" in
     trace|debug)    LOG_LEVEL="DEBUG" ;;
@@ -27,7 +38,7 @@ case "$(bashio::config 'log_level' 'info')" in
     *)              LOG_LEVEL="INFO" ;;
 esac
 
-export OCR_LANG DEVICES SCANIMAGE_LIST_IGNORE SANE_CONFIG_DIR LOG_LEVEL
+export OCR_LANG DEVICES SANE_CONFIG_DIR LOG_LEVEL
 
 bashio::log.info "Starting scanservjs on port 8080…"
 cd /usr/lib/scanservjs || bashio::exit.nok "scanservjs is not installed"

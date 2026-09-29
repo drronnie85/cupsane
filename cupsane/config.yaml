@@ -1,5 +1,5 @@
 name: CUPSane Print & Scan Server
-version: "1.0.2"
+version: "1.0.3"
 slug: cupsane
 description: >-
   CUPS print server with working AirPrint plus SANE/scanservjs scanning

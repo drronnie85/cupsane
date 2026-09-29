@@ -1,3 +1,11 @@
+## 1.0.3
+
+- Fix "no devices found" in the scanservjs web UI: `SCANIMAGE_LIST_IGNORE` was
+  exported as `false`, and scanservjs treats any non-empty value as "skip
+  scanner discovery". It is now only set when the option is enabled.
+- Clear the scanservjs device cache on start, so a replugged USB scanner with a
+  new bus/device number is picked up.
+
 ## 1.0.2
 
 - Fix `open of device brother3:… failed: Invalid argument`: `brscan3` loads its
