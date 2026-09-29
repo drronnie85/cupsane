@@ -1,3 +1,10 @@
+## 1.0.4
+
+- Show scanners by name ("Brother DCP-7030") instead of their SANE id
+  ("brother3:bus2;dev3") in the scanservjs web UI.
+- Fix `ENOENT … /tmp/scanservjs/default.png`: previews use scanservjs' own
+  preview directory again, which ships the placeholder image.
+
 ## 1.0.3
 
 - Fix "no devices found" in the scanservjs web UI: `SCANIMAGE_LIST_IGNORE` was

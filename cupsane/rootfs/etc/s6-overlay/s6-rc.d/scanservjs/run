@@ -14,6 +14,13 @@ else
     done
 fi
 
+# scanservjs only learns device ids ("brother3:bus2;dev3") from scanimage -A;
+# hand config.local.js the "Vendor Model" names that scanimage -L reports.
+mkdir -p /tmp/scanservjs
+printf '%s\n' "${scanners[@]}" \
+    | jq -R 'select(contains("|")) | index("|") as $i | {(.[:$i]): .[$i+1:]}' \
+    | jq -s 'add // {}' > /tmp/scanservjs/device-names.json
+
 # scanservjs reads these at start-up; see its docs on environment variables.
 OCR_LANG=$(bashio::config 'ocr_language' 'eng')
 DEVICES=$(jq -r '[.devices[]? // empty] | join(";")' /data/options.json)
