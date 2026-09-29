@@ -1,11 +1,11 @@
 name: CUPSane Print & Scan Server
-version: "1.0.0"
+version: "1.0.1"
 slug: cupsane
 description: >-
   CUPS print server with working AirPrint plus SANE/scanservjs scanning
-  over the same USB or network device. Includes Brother (brscan4), HP,
+  over the same USB or network device. Includes Brother (brscan3 + brscan4), HP,
   Canon and Epson drivers.
-url: https://github.com/dmytro-sitnikov/ha-cupsane-addon
+url: https://github.com/drronnie85/cupsane
 arch:
   - amd64
   - aarch64

@@ -31,7 +31,9 @@ created on start and added to `lpadmin`, `lp`, `scanner` and `sudo`. Changing
 
 ### `brother_scanner`
 
-Enables Brother's `brscan4` SANE backend (bundled as a `.deb`, x86-64 only).
+Enables Brother's `brscan4` and `brscan3` SANE backends (bundled as `.deb`s,
+x86-64 only). `brscan3` covers older models `brscan4` does not know, such as
+the DCP-7030/7040/7045N and MFC-7440N.
 Turn it off if the backend upsets detection of a non-Brother scanner.
 
 ### `brother_net_devices`
@@ -106,7 +108,7 @@ Windows clients that cannot see the shared queue can add it by URL:
 add-on; restart the add-on after replugging. Check the log for the
 `scanimage`/`sane-find-scanner` output printed at start.
 
-**Brother USB scanner silent on ARM.** `brscan4` is x86-64 only. Use the
+**Brother USB scanner silent on ARM.** `brscan3`/`brscan4` are x86-64 only. Use the
 device's network eSCL interface through `airscan_devices` instead.
 
 **AirPrint does not discover the queue.** The queue must be shared, and the

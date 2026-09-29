@@ -1,3 +1,10 @@
+## 1.0.1
+
+- Bundle Brother `brscan3` 0.2.13 for older scanners that `brscan4` does not
+  support (DCP-7030, DCP-7040, DCP-7045N, MFC-7440N, …). The backend is linked
+  into Debian's multiarch SANE directory and gets `libusb-0.1`, which its own
+  installer does not provide.
+
 ## 1.0.0
 
 Initial release.

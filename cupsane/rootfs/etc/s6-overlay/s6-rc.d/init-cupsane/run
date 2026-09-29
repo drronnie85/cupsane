@@ -99,12 +99,14 @@ enable_backend "hpaio"
 if bashio::config.true 'brother_scanner'; then
     if [ -x /usr/bin/brsaneconfig4 ]; then
         enable_backend "brother4"
+        # Older models (e.g. DCP-7030) are only supported by brscan3.
+        [ -x /usr/bin/brsaneconfig3 ] && enable_backend "brother3"
     else
         bashio::log.warning \
-            "Brother brscan4 is not installed on this architecture; use eSCL/airscan instead"
+            "Brother brscan3/brscan4 are not installed on this architecture; use eSCL/airscan instead"
     fi
 else
-    sed -i '/^[[:space:]]*brother4[[:space:]]*$/d' "${SANE_DIR}/dll.conf"
+    sed -i -E '/^[[:space:]]*brother[34][[:space:]]*$/d' "${SANE_DIR}/dll.conf"
 fi
 
 # net.conf and airscan.conf are fully managed from the add-on options.

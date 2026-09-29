@@ -2,6 +2,7 @@ ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
 FROM ${BUILD_FROM}
 
 ARG ADDON_VERSION="dev"
+ARG BRSCAN3_VERSION="0.2.13-1"
 ARG BRSCAN4_VERSION="0.4.11-1"
 ARG SCANSERVJS_VERSION="3.0.3"
 ARG CNIJFILTER2_VERSION="6.80-1"
@@ -103,6 +104,27 @@ RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
         echo "brscan4 is x86-only, skipping on $(dpkg --print-architecture)"; \
     fi \
     && rm -f /tmp/brscan4.deb
+
+# Brother brscan3 for older models brscan4 does not know (DCP-7030/7040/7045N,
+# MFC-7440N, …). Its postinst only links into /usr/lib/sane, while Debian's
+# SANE loads backends from the multiarch dir, and it needs libusb-0.1 plus
+# libbrscandec3 from /usr/lib64 on the linker path - all fixed up here.
+COPY brscan3-${BRSCAN3_VERSION}.amd64.deb /tmp/brscan3.deb
+RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends libusb-0.1-4 /tmp/brscan3.deb \
+        && apt-get clean && rm -rf /var/lib/apt/lists/* \
+        && SANE_LIB="/usr/lib/x86_64-linux-gnu/sane" \
+        && for so in libsane-brother3.so libsane-brother3.so.1 libsane-brother3.so.1.0.7; do \
+            ln -sfn /usr/lib64/sane/libsane-brother3.so.1.0.7 "${SANE_LIB}/${so}"; \
+        done \
+        && echo "/usr/lib64" > /etc/ld.so.conf.d/brscan3.conf \
+        && ldconfig \
+        && ldd "${SANE_LIB}/libsane-brother3.so.1" | { ! grep "not found"; }; \
+    else \
+        echo "brscan3 is x86-only, skipping on $(dpkg --print-architecture)"; \
+    fi \
+    && rm -f /tmp/brscan3.deb
 
 # Canon cnijfilter2, fetched from Canon. Best-effort: the vendor URL is outside
 # our control and the rest of the add-on works without it.

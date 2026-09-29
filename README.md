@@ -39,7 +39,7 @@ updates.
 Both halves talk to the device independently and only while a job runs, so they
 coexist:
 
-- **USB** — CUPS uses its `usb://` backend, SANE uses `brother4` (Brother),
+- **USB** — CUPS uses its `usb://` backend, SANE uses `brother4`/`brother3` (Brother),
   `hpaio` (HP) or the generic backends.
 - **Network** — CUPS uses `ipp://`/`socket://`, SANE uses `airscan` (eSCL/WSD),
   `brother4` over IP, or `net`.
@@ -49,7 +49,7 @@ exclusively and would break the CUPS side on devices that also speak IPP-USB.
 
 ## Drivers included
 
-- **Brother** — `brscan4` 0.4.11 (scanning, x86-64 only), `printer-driver-brlaser`,
+- **Brother** — `brscan4` 0.4.11 and `brscan3` 0.2.13 for older models (scanning, x86-64 only), `printer-driver-brlaser`,
   Gutenprint, foo2zjs
 - **HP** — HPLIP, `hpaio` SANE backend, `printer-driver-hpcups`, hpijs-ppds
 - **Canon** — `cnijfilter2` 6.80
