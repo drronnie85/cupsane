@@ -1,7 +1,7 @@
 # CUPSane Print & Scan Server
 
 CUPS printing (with working AirPrint) and SANE scanning through the scanservjs
-web UI, for the same USB or network multifunction device.
+web UI and AirSane (eSCL), for the same USB or network multifunction device.
 
 ## Configuration
 
@@ -16,6 +16,7 @@ saned_net_hosts: []
 scanimage_list_ignore: false
 devices: []
 ocr_language: eng
+airsane: true
 ```
 
 ### `log_level`
@@ -78,12 +79,38 @@ Tesseract language for OCR output. All listed languages are already installed
 in the image: `eng`, `ukr`, `rus`, `deu`, `fra`, `spa`, `ita`, `por`, `nld`,
 `pol`.
 
+### `airsane`
+
+Runs [AirSane](https://github.com/SimulPiscator/AirSane) on port 8090. It
+republishes every SANE scanner (USB ones included) as an eSCL/AirScan device
+over mDNS, so clients with built-in eSCL support scan without drivers. Its own
+status page, with a preview scan, is at `http://<ha-ip>:8090`.
+
+Network eSCL devices that `sane-airscan` already sees are not re-published
+(`ignore.conf`), and the add-on's own `sane-airscan` ignores what AirSane
+publishes (a `[blacklist]` of the host's addresses in `airscan.conf`), so no
+scanner shows up twice. For the same reason the `escl` SANE backend is
+disabled — `airscan` handles the same devices.
+
+## Scanning from Windows, macOS, iOS and Android
+
+- **Windows 10/11** — Settings → Bluetooth & devices → Printers & scanners →
+  **Add device**. The scanner appears as e.g. *Brother DCP-7030*; after adding
+  it, scan with the Windows Scan app or "Windows Fax and Scan". Windows accepts
+  at most 4 AirSane scanners.
+- **macOS** — Image Capture and Preview list it under *Shared*.
+- **Android** — Mopria Scan.
+
+A scanner can only serve one scan at a time: while scanservjs, AirSane or a
+print job uses the USB device, the others wait or get a "busy" error.
+
 ## Storage
 
 | Path | Contents |
 | --- | --- |
 | `/addon_configs/<slug>_cupsane/cups` | `cupsd.conf`, printer queues, PPDs |
 | `/addon_configs/<slug>_cupsane/sane.d` | SANE backend configuration |
+| `/addon_configs/<slug>_cupsane/airsane` | AirSane `options.conf`, `ignore.conf`, `access.conf` |
 | `/share/cupsane/scans` | Scanned files |
 | `/share/cupsane/pdf` | Output of the "Print to PDF" queue |
 

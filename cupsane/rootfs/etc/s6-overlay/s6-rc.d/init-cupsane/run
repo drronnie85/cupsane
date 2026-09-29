@@ -5,6 +5,7 @@ set -e
 
 readonly CUPS_DIR="/config/cups"
 readonly SANE_DIR="/config/sane.d"
+readonly AIRSANE_DIR="/config/airsane"
 readonly SCAN_DIR="/share/cupsane/scans"
 readonly PDF_DIR="/share/cupsane/pdf"
 readonly OPTIONS="/data/options.json"
@@ -92,9 +93,12 @@ enable_backend() {
         bashio::log.info "Enabled SANE backend: ${backend}"
     fi
 }
-enable_backend "escl"
 enable_backend "airscan"
 enable_backend "hpaio"
+
+# sane-backends' own "escl" duplicates every device sane-airscan finds and
+# cannot talk to AirSane; airscan covers the same eSCL devices.
+sed -i -E 's/^[[:space:]]*escl[[:space:]]*$/#escl/' "${SANE_DIR}/dll.conf"
 
 if bashio::config.true 'brother_scanner'; then
     if [ -x /usr/bin/brsaneconfig4 ]; then
@@ -123,6 +127,16 @@ fi
     echo
     echo "[devices]"
     option.list 'airscan_devices'
+    # AirSane republishes our own scanners over mDNS; without this they would
+    # show up a second time in scanservjs as airscan devices.
+    if bashio::config.true 'airsane'; then
+        echo
+        echo "[blacklist]"
+        { hostname -I 2>/dev/null \
+            || awk '/32 host LOCAL/ { print prev } { prev = $2 }' /proc/net/fib_trie; } \
+            | tr ' ' '\n' | grep -E '^[0-9]+(\.[0-9]+){3}$' | grep -v '^127\.' | sort -u \
+            | sed 's/^/ip = /' || true
+    fi
 } > "${SANE_DIR}/airscan.conf"
 
 # --- Brother network scanners (brsaneconfig4) ----------------------------
@@ -144,6 +158,17 @@ if bashio::config.true 'brother_scanner' && [ -x /usr/bin/brsaneconfig4 ]; then
         fi
     done < <(option.list 'brother_net_devices')
 fi
+
+# --- AirSane (eSCL) configuration in /config ------------------------------
+# options.conf / ignore.conf / access.conf are seeded once and then left to
+# the user, like the CUPS and SANE configuration.
+if [ ! -d "${AIRSANE_DIR}" ]; then
+    bashio::log.info "First run: seeding ${AIRSANE_DIR}"
+    mkdir -p "${AIRSANE_DIR}"
+    cp -a /etc/airsane/. "${AIRSANE_DIR}/"
+fi
+rm -rf /etc/airsane
+ln -sfn "${AIRSANE_DIR}" /etc/airsane
 
 # --- USB access for both the print and the scan side ---------------------
 chmod -R a+rw /dev/bus/usb 2>/dev/null || true

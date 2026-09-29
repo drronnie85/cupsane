@@ -1,3 +1,15 @@
+## 1.1.0
+
+- Add AirSane 0.4.15, which publishes the SANE scanners as eSCL/AirScan
+  devices over mDNS on port 8090. The Windows 10/11 Scan app, macOS Image
+  Capture and Mopria Scan on Android can now scan from USB-only scanners such
+  as the DCP-7030 without any drivers. Toggle with `airsane`; its
+  configuration is kept in `/config/airsane`.
+- The add-on's own `sane-airscan` blacklists the host's addresses, so scanners
+  republished by AirSane are not listed twice in scanservjs.
+- Disable the `escl` SANE backend; it duplicated `airscan` devices and is not
+  compatible with AirSane.
+
 ## 1.0.4
 
 - Show scanners by name ("Brother DCP-7030") instead of their SANE id

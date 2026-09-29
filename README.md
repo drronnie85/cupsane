@@ -28,6 +28,10 @@ no network access).
 - **Scan UI**: the add-on's *Open Web UI* (ingress) or `http://<ha-ip>:8080`.
 - **AirPrint**: iOS/macOS pick the queue up automatically once it is shared.
 - **Windows**: add a printer by URL `http://<ha-ip>:631/printers/<queue-name>`.
+- **Scanning from Windows / macOS / iOS / Android**: AirSane republishes every
+  SANE scanner as an eSCL (AirScan) device on port 8090. On Windows 10/11 go to
+  Settings → Bluetooth & devices → Printers & scanners → *Add device*, then use
+  the Scan app; macOS Image Capture and Android Mopria Scan find it on their own.
 
 Scans land in `/share/cupsane/scans`, "Print to PDF" output in
 `/share/cupsane/pdf`. CUPS and SANE configuration lives in
@@ -56,6 +60,8 @@ exclusively and would break the CUPS side on devices that also speak IPP-USB.
 - **Epson** — `printer-driver-escpr`
 - **Generic** — `printer-driver-all`, `openprinting-ppds`, Splix
 - **Network scanning** — `sane-airscan` (eSCL / AirScan / WSD)
+- **Scan server** — [AirSane](https://github.com/SimulPiscator/AirSane) 0.4.15
+  (SANE → eSCL), built from source
 
 On `aarch64` Brother's `brscan4` is skipped — Brother only ships x86 binaries.
 Use eSCL (`airscan_devices`) for Brother network MFPs on ARM.

@@ -1,0 +1,23 @@
+#!/usr/bin/with-contenv bashio
+# eSCL / AirScan server: publishes the SANE scanners over mDNS, so the Windows
+# Scan app, macOS Image Capture, iOS and Mopria clients scan without drivers.
+if ! bashio::config.true 'airsane'; then
+    bashio::log.info "AirSane is disabled"
+    exec sleep infinity
+fi
+
+# AirSane announces through avahi-daemon over D-Bus.
+until avahi-daemon --check 2>/dev/null; do
+    sleep 1
+done
+
+bashio::log.info "Starting AirSane (eSCL) on port 8090…"
+exec /usr/local/bin/airsaned \
+    --listen-port=8090 \
+    --mdns-announce=true \
+    --hotplug=true \
+    --web-interface=true \
+    --reset-option=false \
+    --options-file=/etc/airsane/options.conf \
+    --access-file=/etc/airsane/access.conf \
+    --ignore-list=/etc/airsane/ignore.conf
