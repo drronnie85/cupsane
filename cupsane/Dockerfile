@@ -107,8 +107,9 @@ RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
 
 # Brother brscan3 for older models brscan4 does not know (DCP-7030/7040/7045N,
 # MFC-7440N, …). Its postinst only links into /usr/lib/sane, while Debian's
-# SANE loads backends from the multiarch dir, and it needs libusb-0.1 plus
-# libbrscandec3 from /usr/lib64 on the linker path - all fixed up here.
+# SANE loads backends from the multiarch dir. It also needs libusb-0.1, and it
+# dlopen()s the unversioned "libbrscandec3.so" only when a device is opened,
+# so that name must sit in a default library dir - all fixed up here.
 COPY brscan3-${BRSCAN3_VERSION}.amd64.deb /tmp/brscan3.deb
 RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
         apt-get update \
@@ -118,9 +119,12 @@ RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
         && for so in libsane-brother3.so libsane-brother3.so.1 libsane-brother3.so.1.0.7; do \
             ln -sfn /usr/lib64/sane/libsane-brother3.so.1.0.7 "${SANE_LIB}/${so}"; \
         done \
-        && echo "/usr/lib64" > /etc/ld.so.conf.d/brscan3.conf \
+        && for so in libbrscandec3.so libbrscandec3.so.1 libbrscandec3.so.1.0.0; do \
+            ln -sfn /usr/lib64/libbrscandec3.so.1.0.0 "/usr/lib/x86_64-linux-gnu/${so}"; \
+        done \
         && ldconfig \
-        && ldd "${SANE_LIB}/libsane-brother3.so.1" | { ! grep "not found"; }; \
+        && ldd "${SANE_LIB}/libsane-brother3.so.1" | { ! grep "not found"; } \
+        && test -e /usr/lib/x86_64-linux-gnu/libbrscandec3.so; \
     else \
         echo "brscan3 is x86-only, skipping on $(dpkg --print-architecture)"; \
     fi \

@@ -1,3 +1,9 @@
+## 1.0.2
+
+- Fix `open of device brother3:… failed: Invalid argument`: `brscan3` loads its
+  `libbrscandec3.so` decoder by its unversioned name when a scan starts, so the
+  library is now linked into the default library directory.
+
 ## 1.0.1
 
 - Bundle Brother `brscan3` 0.2.13 for older scanners that `brscan4` does not
