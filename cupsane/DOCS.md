@@ -21,8 +21,9 @@ airsane: true
 
 ### `log_level`
 
-Verbosity of the add-on log and of scanservjs. `info` is a good default;
-`debug` when a device is not detected.
+Verbosity of the add-on log, scanservjs and AirSane. `info` is a good default;
+`debug` when a device is not detected or a scan fails — AirSane then logs every
+SANE call.
 
 ### `cups_user` / `cups_password`
 

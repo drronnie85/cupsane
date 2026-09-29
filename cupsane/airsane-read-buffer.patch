@@ -1,0 +1,73 @@
+diff --git a/sanecpp/sanecpp.cpp b/sanecpp/sanecpp.cpp
+index 0a25187..88166fb 100644
+--- a/sanecpp/sanecpp.cpp
++++ b/sanecpp/sanecpp.cpp
+@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+ #include "sanecpp.h"
++#include <algorithm>
+ #include <cassert>
+ #include <cstring>
+ #include <iostream>
+@@ -597,6 +598,7 @@ session::start()
+     return *this;
+   }
+ 
++  m_readpos = m_readlen = 0;
+   m_sane_status = ::sane_start(m_device.get());
+   switch (m_sane_status) {
+     case SANE_STATUS_GOOD:
+@@ -638,14 +640,29 @@ session::read(std::vector<char>& buffer)
+   m_session_state = reading;
+   m_session_state_changed.notify_all();
+ 
++  const size_t chunk = 64 * 1024;
++  if (m_readbuf.size() < chunk)
++    m_readbuf.resize(chunk);
++
+   SANE_Status status = SANE_STATUS_GOOD;
+   size_t total = 0;
+-  SANE_Byte* p = reinterpret_cast<SANE_Byte*>(buffer.data());
+-  while (status == SANE_STATUS_GOOD && total < buffer.size()) {
+-    SANE_Int read;
+-    status =
+-      ::sane_read(m_device.get(), p + total, buffer.size() - total, &read);
+-    total += read;
++  while (total < buffer.size()) {
++    if (m_readpos == m_readlen) {
++      SANE_Int read = 0;
++      status = ::sane_read(m_device.get(),
++                           reinterpret_cast<SANE_Byte*>(m_readbuf.data()),
++                           m_readbuf.size(),
++                           &read);
++      m_readpos = 0;
++      m_readlen = (status == SANE_STATUS_GOOD && read > 0) ? read : 0;
++      if (status != SANE_STATUS_GOOD)
++        break;
++      continue;
++    }
++    size_t n = std::min(buffer.size() - total, m_readlen - m_readpos);
++    std::memcpy(buffer.data() + total, m_readbuf.data() + m_readpos, n);
++    m_readpos += n;
++    total += n;
+   }
+   switch (status) {
+     case SANE_STATUS_GOOD:
+diff --git a/sanecpp/sanecpp.h b/sanecpp/sanecpp.h
+index ab9679b..fd12553 100644
+--- a/sanecpp/sanecpp.h
++++ b/sanecpp/sanecpp.h
+@@ -182,6 +182,12 @@ private:
+   SANE_Status m_sane_status;
+   SANE_Parameters m_parameters;
+ 
++  // Staging buffer: sane_read() is always called with a large buffer, as some
++  // backends (e.g. Brother brscan3) fail with SANE_STATUS_NO_MEM when asked
++  // for less than their internal block size, such as a single scan line.
++  std::vector<char> m_readbuf;
++  size_t m_readpos = 0, m_readlen = 0;
++
+   std::mutex m_session_state_mutex;
+   std::condition_variable m_session_state_changed;
+   enum { pristine, initialized, reading };

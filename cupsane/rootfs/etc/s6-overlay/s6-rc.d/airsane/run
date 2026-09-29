@@ -11,8 +11,14 @@ until avahi-daemon --check 2>/dev/null; do
     sleep 1
 done
 
+debug="false"
+case "$(bashio::config 'log_level' 'info')" in
+    trace|debug) debug="true" ;;
+esac
+
 bashio::log.info "Starting AirSane (eSCL) on port 8090…"
 exec /usr/local/bin/airsaned \
+    --debug="${debug}" \
     --listen-port=8090 \
     --mdns-announce=true \
     --hotplug=true \

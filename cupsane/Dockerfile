@@ -9,12 +9,17 @@ ARG AIRSANE_VERSION="0.4.15"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# AirSane reads one scan line per sane_read(); Brother's brscan3 answers such
+# small reads with SANE_STATUS_NO_MEM, so reads are staged through 64 KiB.
+COPY airsane-read-buffer.patch /tmp/airsane-read-buffer.patch
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl cmake make g++ \
+        ca-certificates curl cmake make g++ patch \
         libsane-dev libjpeg-dev libpng-dev libavahi-client-dev libusb-1.0-0-dev \
     && curl -fsSL "https://github.com/SimulPiscator/AirSane/archive/refs/tags/v${AIRSANE_VERSION}.tar.gz" \
         | tar -xz -C /tmp \
+    && patch -d "/tmp/AirSane-${AIRSANE_VERSION}" -p1 < /tmp/airsane-read-buffer.patch \
     && cmake -S "/tmp/AirSane-${AIRSANE_VERSION}" -B /tmp/airsane-build \
         -DCMAKE_BUILD_TYPE=MinSizeRel \
     && make -C /tmp/airsane-build -j"$(nproc)" \

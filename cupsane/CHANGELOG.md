@@ -1,3 +1,11 @@
+## 1.1.1
+
+- Fix AirSane scans failing on Brother `brscan3` scanners (the head moves, the
+  device beeps, no image): AirSane read one scan line per `sane_read()`, which
+  `brscan3` rejects with "Out of memory". AirSane is now patched to read
+  through a 64 KiB buffer (`airsane-read-buffer.patch`).
+- `log_level: debug` / `trace` also turns on AirSane's debug log.
+
 ## 1.1.0
 
 - Add AirSane 0.4.15, which publishes the SANE scanners as eSCL/AirScan
