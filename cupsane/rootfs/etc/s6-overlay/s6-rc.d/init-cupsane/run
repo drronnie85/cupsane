@@ -1,0 +1,159 @@
+#!/usr/bin/with-contenv bashio
+# Prepares persistent storage, renders the CUPS/Avahi/SANE configuration and
+# applies the add-on options. Runs once, before any daemon is started.
+set -e
+
+readonly CUPS_DIR="/config/cups"
+readonly SANE_DIR="/config/sane.d"
+readonly SCAN_DIR="/share/cupsane/scans"
+readonly PDF_DIR="/share/cupsane/pdf"
+readonly OPTIONS="/data/options.json"
+
+# Reads a list option one element per line, so values may contain spaces.
+option.list() {
+    jq -r --arg key "${1}" '.[$key][]? // empty' "${OPTIONS}"
+}
+
+bashio::log.info "Preparing CUPSane…"
+
+# --- Templating context --------------------------------------------------
+hostname=$(bashio::info.hostname)
+core=$(bashio::api.supervisor GET /core/api/config true || echo '{}')
+internal=$(bashio::jq "${core}" '.internal_url // ""' | cut -d'/' -f3 | cut -d':' -f1)
+external=$(bashio::jq "${core}" '.external_url // ""' | cut -d'/' -f3 | cut -d':' -f1)
+
+context=$(jq -n \
+    --arg hostname "${hostname}" \
+    --arg internal "${internal}" \
+    --arg external "${external}" \
+    '{hostname: $hostname, internal: $internal, external: $external}')
+
+# --- CUPS admin account --------------------------------------------------
+cups_user=$(bashio::config 'cups_user' 'print')
+cups_password=$(bashio::config 'cups_password' 'print')
+
+if ! id "${cups_user}" &>/dev/null; then
+    bashio::log.info "Creating CUPS administrator '${cups_user}'"
+    useradd --create-home --home-dir "/home/${cups_user}" --shell /bin/bash "${cups_user}"
+fi
+usermod --append --groups sudo,lp,lpadmin,scanner "${cups_user}"
+echo "${cups_user}:${cups_password}" | chpasswd
+
+# --- Persistent CUPS configuration in /config ----------------------------
+# Rendered once; afterwards the user's own cupsd.conf and printer queues are
+# left untouched. Delete /config/cups/cupsd.conf to get a fresh one.
+echo "${context}" | tempio \
+    -template /usr/share/cupsane/cupsd.conf.tempio \
+    -out /etc/cups/cupsd.conf
+
+if [ ! -d "${CUPS_DIR}" ]; then
+    bashio::log.info "First run: seeding ${CUPS_DIR}"
+    mkdir -p "${CUPS_DIR}"
+    cp -a /etc/cups/. "${CUPS_DIR}/"
+elif [ ! -f "${CUPS_DIR}/cupsd.conf" ]; then
+    bashio::log.info "Restoring missing cupsd.conf"
+    cp -a /etc/cups/cupsd.conf "${CUPS_DIR}/cupsd.conf"
+fi
+
+rm -rf /etc/cups
+ln -sfn "${CUPS_DIR}" /etc/cups
+
+# Stale sockets and caches from an unclean shutdown confuse cupsd and avahi.
+rm -f /var/run/avahi-daemon/* /run/dbus/* "${CUPS_DIR}/remote.cache" 2>/dev/null || true
+rm -rf "${CUPS_DIR}"/cache/* 2>/dev/null || true
+mkdir -p /var/run/dbus /run/dbus /run/cups "${SCAN_DIR}" "${PDF_DIR}"
+
+# Virtual "Print to PDF" queue drops its output into /share.
+if [ -f "${CUPS_DIR}/cups-pdf.conf" ]; then
+    sed -i "s|^#\?[[:space:]]*Out .*|Out ${PDF_DIR}|" "${CUPS_DIR}/cups-pdf.conf"
+    sed -i "s|^#\?[[:space:]]*AnonDirName .*|AnonDirName ${PDF_DIR}|" "${CUPS_DIR}/cups-pdf.conf"
+fi
+
+# --- Avahi (AirPrint discovery) ------------------------------------------
+echo "${context}" | tempio \
+    -template /usr/share/cupsane/avahi-daemon.conf.tempio \
+    -out /etc/avahi/avahi-daemon.conf
+
+# --- Persistent SANE configuration in /config ----------------------------
+if [ ! -d "${SANE_DIR}" ]; then
+    bashio::log.info "First run: seeding ${SANE_DIR}"
+    mkdir -p "${SANE_DIR}"
+    cp -a /etc/sane.d/. "${SANE_DIR}/"
+fi
+rm -rf /etc/sane.d
+ln -sfn "${SANE_DIR}" /etc/sane.d
+
+# Make sure the backends we ship are actually enabled in dll.conf.
+enable_backend() {
+    local backend=${1}
+    [ -f "${SANE_DIR}/dll.conf" ] || touch "${SANE_DIR}/dll.conf"
+    if ! grep -qE "^[[:space:]]*${backend}[[:space:]]*$" "${SANE_DIR}/dll.conf"; then
+        echo "${backend}" >> "${SANE_DIR}/dll.conf"
+        bashio::log.info "Enabled SANE backend: ${backend}"
+    fi
+}
+enable_backend "escl"
+enable_backend "airscan"
+enable_backend "hpaio"
+
+if bashio::config.true 'brother_scanner'; then
+    if [ -x /usr/bin/brsaneconfig4 ]; then
+        enable_backend "brother4"
+    else
+        bashio::log.warning \
+            "Brother brscan4 is not installed on this architecture; use eSCL/airscan instead"
+    fi
+else
+    sed -i '/^[[:space:]]*brother4[[:space:]]*$/d' "${SANE_DIR}/dll.conf"
+fi
+
+# net.conf and airscan.conf are fully managed from the add-on options.
+{
+    echo "# Managed by the CUPSane add-on — edit the 'saned_net_hosts' option instead."
+    echo "connect_timeout = 5"
+    option.list 'saned_net_hosts'
+} > "${SANE_DIR}/net.conf"
+
+{
+    echo "; Managed by the CUPSane add-on — edit the 'airscan_devices' option instead."
+    echo "[options]"
+    echo "discovery = enable"
+    echo
+    echo "[devices]"
+    option.list 'airscan_devices'
+} > "${SANE_DIR}/airscan.conf"
+
+# --- Brother network scanners (brsaneconfig4) ----------------------------
+if bashio::config.true 'brother_scanner' && [ -x /usr/bin/brsaneconfig4 ]; then
+    while read -r entry; do
+        [ -n "${entry}" ] || continue
+        name=$(echo "${entry}" | sed -n 's/.*name=\([^ ]*\).*/\1/p')
+        if [ -z "${name}" ]; then
+            bashio::log.warning "Ignoring brother_net_devices entry without name=: ${entry}"
+            continue
+        fi
+        # Re-register so a changed IP or model is picked up on restart.
+        /usr/bin/brsaneconfig4 -r "${name}" &>/dev/null || true
+        # shellcheck disable=SC2086
+        if /usr/bin/brsaneconfig4 -a ${entry}; then
+            bashio::log.info "Registered Brother network scanner '${name}'"
+        else
+            bashio::log.warning "Failed to register Brother scanner: ${entry}"
+        fi
+    done < <(option.list 'brother_net_devices')
+fi
+
+# --- USB access for both the print and the scan side ---------------------
+chmod -R a+rw /dev/bus/usb 2>/dev/null || true
+chgrp -R scanner /dev/bus/usb 2>/dev/null || true
+
+# --- scanservjs ----------------------------------------------------------
+mkdir -p /tmp/scanservjs /etc/scanservjs
+chmod 755 "${SCAN_DIR}" /tmp/scanservjs
+
+install -m 644 /usr/share/cupsane/config.local.js /etc/scanservjs/config.local.js
+if [ -d /usr/lib/scanservjs/config ]; then
+    install -m 644 /usr/share/cupsane/config.local.js /usr/lib/scanservjs/config/config.local.js
+fi
+
+bashio::log.info "CUPSane is configured; starting services…"

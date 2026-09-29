@@ -1,0 +1,64 @@
+name: CUPSane Print & Scan Server
+version: "1.0.0"
+slug: cupsane
+description: >-
+  CUPS print server with working AirPrint plus SANE/scanservjs scanning
+  over the same USB or network device. Includes Brother (brscan4), HP,
+  Canon and Epson drivers.
+url: https://github.com/dmytro-sitnikov/ha-cupsane-addon
+arch:
+  - amd64
+  - aarch64
+init: false
+usb: true
+host_network: true
+homeassistant_api: true
+privileged:
+  - SYS_ADMIN
+  - SYS_RAWIO
+  - DAC_READ_SEARCH
+icon: icon.png
+logo: logo.png
+panel_icon: mdi:printer-eye
+startup: services
+boot: auto
+ports:
+  631/tcp: 631
+  631/udp: 631
+  8080/tcp: 8080
+ports_description:
+  631/tcp: CUPS / IPP — print queue and admin web interface
+  631/udp: CUPS / IPP — print queue
+  8080/tcp: scanservjs web interface (also reachable through Ingress)
+ingress: true
+ingress_port: 8080
+map:
+  - addon_config:rw
+  - share:rw
+  - ssl
+options:
+  log_level: info
+  cups_user: print
+  cups_password: print
+  brother_scanner: true
+  brother_net_devices: []
+  airscan_devices: []
+  saned_net_hosts: []
+  scanimage_list_ignore: false
+  devices: []
+  ocr_language: eng
+schema:
+  log_level: list(trace|debug|info|notice|warning|error|fatal)
+  cups_user: str
+  cups_password: password
+  brother_scanner: bool
+  brother_net_devices:
+    - str
+  airscan_devices:
+    - str
+  saned_net_hosts:
+    - str
+  scanimage_list_ignore: bool
+  devices:
+    - str
+  ocr_language: list(eng|ukr|rus|deu|fra|spa|ita|por|nld|pol)

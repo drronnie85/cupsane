@@ -1,0 +1,12 @@
+#!/usr/bin/with-contenv bashio
+# The print side: CUPS serves IPP/AirPrint on 631 for the very same device
+# that scanservjs scans from.
+ulimit -n 524288
+
+until [ -e /var/run/avahi-daemon/socket ]; do
+  sleep 1
+done
+
+bashio::log.info "Starting CUPS server on port 631…"
+
+exec cupsd -f

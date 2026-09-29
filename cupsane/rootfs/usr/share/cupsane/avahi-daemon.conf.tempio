@@ -1,0 +1,25 @@
+# Avahi configuration for the CUPSane add-on.
+#
+# Reflector mode is what makes AirPrint discovery work while the add-on shares
+# the host network stack with Home Assistant's own mDNS responder.
+# See avahi-daemon.conf(5).
+
+[server]
+host-name={{.hostname}}-print
+use-ipv4=yes
+use-ipv6=yes
+ratelimit-interval-usec=1000000
+ratelimit-burst=1000
+
+[wide-area]
+enable-wide-area=yes
+
+[publish]
+publish-hinfo=no
+publish-workstation=no
+
+[reflector]
+enable-reflector=yes
+
+[rlimits]
+#rlimit-nofile=768

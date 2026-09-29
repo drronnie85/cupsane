@@ -1,0 +1,4 @@
+# Container scripts must keep LF endings even on a Windows checkout.
+* text=auto eol=lf
+*.png binary
+*.deb binary

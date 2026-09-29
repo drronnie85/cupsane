@@ -1,0 +1,7 @@
+build_from:
+  amd64: ghcr.io/home-assistant/amd64-base-debian:bookworm
+  aarch64: ghcr.io/home-assistant/aarch64-base-debian:bookworm
+args:
+  BRSCAN4_VERSION: 0.4.11-1
+  SCANSERVJS_VERSION: 3.0.3
+  CNIJFILTER2_VERSION: 6.80-1

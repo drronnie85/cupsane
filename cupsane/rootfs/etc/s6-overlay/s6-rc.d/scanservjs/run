@@ -1,0 +1,35 @@
+#!/usr/bin/with-contenv bashio
+# The scan side: scanservjs web UI on 8080 (also exposed through Ingress).
+# Runs as root so it can reach USB scanners without extra udev rules.
+declare -a scanners
+
+bashio::log.info "Detecting scanners…"
+mapfile -t scanners < <(scanimage --formatted-device-list '%d|%v %m%n' 2>/dev/null || true)
+if [ ${#scanners[@]} -eq 0 ]; then
+    bashio::log.warning "No scanner detected — check that it is connected and powered on"
+    sane-find-scanner -q 2>/dev/null || true
+else
+    for scanner in "${scanners[@]}"; do
+        bashio::log.info "Scanner: ${scanner}"
+    done
+fi
+
+# scanservjs reads these at start-up; see its docs on environment variables.
+OCR_LANG=$(bashio::config 'ocr_language' 'eng')
+DEVICES=$(jq -r '[.devices[]? // empty] | join(";")' /data/options.json)
+SCANIMAGE_LIST_IGNORE=$(bashio::config 'scanimage_list_ignore' 'false')
+SANE_CONFIG_DIR="/etc/sane.d"
+
+case "$(bashio::config 'log_level' 'info')" in
+    trace|debug)    LOG_LEVEL="DEBUG" ;;
+    warning)        LOG_LEVEL="WARN" ;;
+    error|fatal)    LOG_LEVEL="ERROR" ;;
+    *)              LOG_LEVEL="INFO" ;;
+esac
+
+export OCR_LANG DEVICES SCANIMAGE_LIST_IGNORE SANE_CONFIG_DIR LOG_LEVEL
+
+bashio::log.info "Starting scanservjs on port 8080…"
+cd /usr/lib/scanservjs || bashio::exit.nok "scanservjs is not installed"
+
+exec node server/server.js

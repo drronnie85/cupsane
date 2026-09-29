@@ -1,0 +1,9 @@
+#!/usr/bin/with-contenv bashio
+# D-Bus is required by Avahi for service registration.
+ulimit -n 524288
+
+bashio::log.info "Starting D-Bus daemon…"
+mkdir -p /run/dbus
+rm -f /run/dbus/pid /run/dbus/system_bus_socket
+
+exec dbus-daemon --system --nofork --nopidfile

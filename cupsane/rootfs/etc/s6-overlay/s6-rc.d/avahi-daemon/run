@@ -1,0 +1,14 @@
+#!/usr/bin/with-contenv bashio
+# Publishes the CUPS queues over mDNS so AirPrint clients find them.
+# Runs in reflector mode, which is what makes discovery work while sharing
+# the host network with Home Assistant's own Avahi.
+ulimit -n 524288
+
+until [ -e /run/dbus/system_bus_socket ]; do
+  sleep 1
+done
+
+bashio::log.info "Starting Avahi daemon…"
+rm -f /run/avahi-daemon/pid
+
+exec avahi-daemon --no-chroot
